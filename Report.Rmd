@@ -16,7 +16,7 @@ include-before: '`\newpage{}`{=latex}'
 
 ## Summary
 
-This exercise investigates recorded measurements of carbon dioxide ($CO_2$) in the Earth's atmosphere, and uses traditional time series methods to forecast their concentrations into the future. 
+This exercise investigates concentration measurements of carbon dioxide (CO$_2$) in the Earth's atmosphere, and uses traditional time series methods to forecast their levels into the future. 
 
 This work was originally completed as part of the W271 Statistical Methods for Discrete Response, Time Series, and Panel Data course in the Master of Information and Data Science program at University of California, Berkeley.
 
@@ -29,10 +29,10 @@ In the 1950s, the geochemist Charles David Keeling observed a seasonal pattern i
 
 In 1958 Keeling began continuous monitoring of atmospheric carbon dioxide concentrations from the Mauna Loa Observatory in Hawaii. He soon observed a trend increase carbon dioxide levels in addition to the seasonal cycle, attributable to growth in global rates of fossil fuel combustion. Measurement of this trend at Mauna Loa has continued to the present.
 
-The `co2` data set in R's `datasets` package (automatically loaded with base R) is a monthly time series of atmospheric carbon dioxide concentrations measured in parts per million (PPM) at the Mauna Loa Observatory from 1959 to 1997. The curve graphed by this data is known as the 'Keeling Curve'.
+The `co2` data set in R's `datasets` package (automatically loaded with base R) is a monthly time series of atmospheric carbon dioxide concentrations measured in parts per million (ppm) at the Mauna Loa Observatory from 1959 to 1997. The curve graphed by this data is known as the 'Keeling Curve'.
 
 ```{r}
-plot(co2, ylab = expression("CO"[2]*" Concentration (PPM)"),
+plot(co2, ylab = expression("CO"[2]*" Concentration (ppm)"),
      xlab = expression("Time"),
      col = 'blue', las = 1)
 title(main = expression("Figure 1. Keeling Curve - Monthly Mean CO"[2]*" Variation"))
@@ -52,18 +52,19 @@ library(ggplot2)
 library(dplyr)
 library(lubridate)
 library(zoo)
+library(gridExtra)
 ```
 
-Unlike traditional statistics, time series modeling includes additional assumptions and unique model structures not found in problems where there is no time involved component. These must be investigated before the time series data is used, regardless of whether the goal is to produce a forecast or just understand relationships within the data. 
+Unlike traditional statistics, time series modeling includes additional assumptions and unique model structures not found in problems where there is no time involved component. These must be investigated before the time series data is used, regardless of whether the goal is to produce a forecast or solely examine relationships within the data. 
 
-To begin, it can be found that in the dataset there are `r sum(is.na(co2))` missing values (a sign of Keeling's commitment towards taking measurements). The measurements take place from `r as.yearmon(time(co2))[1]` to `r as.yearmon(time(co2))[length(co2)]`, also following the description that Keeling began in 1958. 
+To begin, it can be found that in the dataset there are `r sum(is.na(co2))` missing values (a sign of Keeling's commitment towards taking measurements). The measurements take place from `r as.yearmon(time(co2))[1]` to `r as.yearmon(time(co2))[length(co2)]`, also closely following the description that Keeling began in 1958. 
 
-From **Figure 1**, it is obvious that there is a positive trend that makes the series non-stationary in the mean. The mean of the series is `r mean(co2)`, which clearly is greater than the start of the series and lower than the end. It also appears that the variance could be increasing over time, with the cycles being of greater amplitude later in the series than in earlier sections. Across the entire series, the standard deviation is `r sd(co2)`, which also appears greater than the amplitude of early cycles and closer in size to later cycles. This makes the series non-stationary in the variance as well. To address this increasing variance, the logarithm may be taken and examined.
+From **Figure 1**, it is obvious that there is a positive trend that makes the series non-stationary in the mean. The mean of the series is about `r round(mean(co2), 1)` ppm, which clearly is greater than the start of the series and lower than the end. It also appears that the variance could be increasing over time, with cycles being of greater amplitude later in the series than in earlier sections. Across the entire series, the standard deviation is about `r round(sd(co2), 1)` ppm, which also appears greater than the amplitude of early cycles and closer in size to later cycles. This makes the series non-stationary in the variance as well. To address this increasing variance, the logarithm may be taken and examined.
 
 ```{r}
 d <- log(co2)
 
-plot(d, xlab = "Year", ylab = expression("Logarithm of CO"[2]*" PPM"), col = 'blue',
+plot(d, xlab = "Year", ylab = expression("Logarithm of CO"[2]*" Concentration"), col = 'blue',
      main = "Figure 2. Logarithmic Time Series", type = "l")
 ```
 
@@ -82,7 +83,7 @@ plot(d2, xlab = "Year", ylab = "Second Differenced Log Value",
 abline(h = mean(d2), lty = 2, col = "red")
 ```
 
-**Figures 3** and **4** show the first and second differenced times series after applying the previous logarithm transformation. It can be seen in **Figure 3** that the first difference does much to remove the positive time trend, but the majority of the data still appears to slightly fluctuate in the mean over time. For example, the second half of the data appears to have a slightly higher mean value than the first half. On the other hand, **Figure 4** shows that after taking the second difference, the data appears to completely be stationary in the mean. Therefore, any model with this data should also take the second difference with *d = 2* and/or *D = 2* to achieve this.
+**Figures 3** and **4** show the first and second differenced times series after applying the previous logarithm transformation. It can be seen in **Figure 3** that the first difference does much to remove the positive time trend, but the majority of the data still appears to slightly fluctuate in the mean over time. For example, the second half of the data appears to have a slightly higher mean value than the first half. On the other hand, **Figure 4** shows that after taking the second difference, the data appears to completely be stationary in the mean. Therefore, any model with this data should also take the second difference to achieve this.
 
 Next, the seasonality and other elements of the data will be investigated.
 
@@ -94,12 +95,13 @@ plot(pacf(d2, plot = FALSE), main = "")
 title("Figure 6. Partial Autocorrelation Plot")
 ```
 
-**Figures 5** and **6** show the autocorrelation function (ACF) and partial autocorrelation function (PACF) of the data after the logarithm transformation and second differencing. It can be seen there is a significant lag at *k = 1* and *k = 2*, measured in years. In between these points (and also for the subsequent interval) appears to be a repetitive oscillatory pattern indicating an element of seasonality to this data. This fits with Keeling's original hypothesis that stated annual cyclic changes in the environment and vegetation would affect CO$_2$ concentrations in the atmosphere. Interestingly, the pattern in **Figure 5** assumes a shape where lag is significantly positive but intermediate lags are significantly negative, and with decreasing magnitudes over later time-period shifts. Similar to **Figure 6**, these oscillations appears to be decreasing in magnitude over time. These repeating patterns may explain seasonality in the time series, rather than being indicative of the non-seasonal autoregressive (AR) or moving average (MA) components. Full investigation of AR/MA components of the data will be continued later when exploring an ARIMA model. 
-## Linear Time Trend Modeling
+**Figures 5** and **6** show the autocorrelation function (ACF) and partial autocorrelation function (PACF) of the data after the logarithm transformation and second differencing. It can be seen there is a significant lag at *k = 1* and *k = 2*, measured in years. In between these points (and also for the subsequent interval) appears to be a repetitive oscillatory pattern indicating that there is seasonality to this data. This fits with Keeling's original hypothesis that stated annual cyclic changes in the environment and vegetation would affect CO$_2$ concentrations in the atmosphere. Interestingly, the pattern in **Figure 5** assumes a shape where whole number lags are significantly positive but intermediate lags are significantly negative, and with decreasing magnitudes over later time-period shifts. Similar to **Figure 6**, these oscillations appears to be decreasing in magnitude over time. These repeating patterns may explain seasonality in the time series, rather than being indicative of the non-seasonal autoregressive (AR) or moving average (MA) components. Full investigation of AR/MA components of the data will be continued later when exploring ARIMA models. 
+
+## Linear Time Trend Modeling on Keeling Data
 
 Before more complicated time series methods, a simple linear time trend can be used as a baseline against which to compare future iterations. A linear time trend is a specific type of linear time series model where the only independent variable in the model is time. That is, the model would take the form of:
 $$x_t = \alpha_0 + \alpha_1*t + \alpha_2*t^2 + ... + \alpha_n*t^n$$
-for an $n$-th ordered polynomial with time series $x_t$ and model parameters $\alpha$ as a linear time trend. Note that the *linear* description of the model comes from the linear relationship of model parameters, and not the relationship with time itself.
+for an $n$-th ordered polynomial with time series $x_t$ and model parameters $\alpha$ as a linear time trend. Note that the *linear* description of the model comes from the linear relationship of model parameters, and not the relationship with time itself. In this report, if the relationship with time is only of the first order, then the model will also be referred to as a Linear Model. If the relationship is of a higher order, then the model will be referred to as a Polynomial Model.
 
 While in the EDA it was found that a logarithm and differencing operation was needed to make the time series stationary, linear time trends do not rely on any assumption of stationarity. Therefore, to start, a linear time trend of the first order will be fit to the raw data.
 
@@ -107,16 +109,16 @@ While in the EDA it was found that a logarithm and differencing operation was ne
 Time <- time(co2)
 linear_model <- lm(co2 ~ Time)
 
-plot(co2, xlab = "Year", ylab = expression("CO"[2]*" Concentration (PPM)"), main = "Figure 7. Fitted Linear Model",
+plot(co2, xlab = "Year", ylab = expression("CO"[2]*" Concentration (ppm)"), main = "Figure 7. Fitted Linear Model",
      type = "l")
 lines(co2 + linear_model$resid, col = "blue") 
 legend('bottomright', legend=c("Original", "Linear Model"), col=c("black","blue"),
        lty=1)
 ```
 
-**Figure 7** displays the fitted linear model of the first order overlaid on top of the original data. It can be seen that the linear model generally overestimates the amount of variance in the data, with cyclic amplitudes that are much greater than in the original time series. However, it is able to estimate the frequency of the cycles quite well, with an almost exact overlap between the crests and troughs of each series.
+**Figure 7** displays the fitted linear model of the first order overlaid on the original data. It can be seen that the linear model generally overestimates the amount of variance in the data, with cyclic amplitudes that are much greater than in the original time series. However, it is able to estimate the frequency of the cycles quite well, with an almost exact overlap between the crests and troughs of each series.
 
-The residuals may be examined on their own for an evaluation of the fit.
+The correlation of the residuals produced by the model may be examined for an evaluation of the fit.
 
 ```{r}
 par(mfrow = c(1, 2), cex = 0.6)
@@ -126,26 +128,26 @@ plot(pacf(linear_model$residuals, plot = FALSE), main = "")
 title("Figure 9. Partial Autocorrelation Plot")
 ```
 
-**Figures 8** and **9** show the ACF and PACF of the linear model's residuals. A slightly damped oscillatory pattern can be observed in both, indicating that the model does not account well for the seasonal variation which is present in the original data. This appears to have a period of 12 months based upon **Figure 8**.
+**Figures 8** and **9** show the ACF and PACF of the model's residuals, with the lags shown in months. A slightly damped oscillatory pattern can be observed in both, similar to **Figures 5** and **6**. This indicates that the model does not account well for the seasonal variation which is present in the original data. Based on **Figure 8** and Keeling's hypothesis, these appear to have a period of 12 months.
 
 Finally, the residuals can be viewed on their own over time.
 
 ```{r}
 plot(linear_model$residuals, 
-     xlab = "Time", ylab = expression("CO"[2]*" Concentration Residual (PPM)"), xaxt = "n",
+     xlab = "Time", ylab = expression("CO"[2]*" Concentration Residual (ppm)"), xaxt = "n",
      main = "Figure 10. Fitted Linear Model Residuals", type = "l")
 axis(1, at=c(12,132,252,372), labels=c(1960, 1970, 1980, 1990))
 abline(h = mean(linear_model$resid), col = "red")
 ```
 
-Clearly, the residuals in **Figure 10** are non-stationary in the mean and do not resemble a white noise series. At earlier and later decades, the residuals are consistently higher than the mean. In the middle of the time series, however, they are consistently less than the mean. This demonstrates that there are still components in the original time series that have not been accounted for by the linear model. It is also a reflection of what a first order linear model may achieve on non-stationary data, where the two sole model parameters only capture the average trend over the data. When this trend is not constant, the fit over the data is uneven.
+Clearly, the residuals in **Figure 10** do not resemble a white noise series. At earlier and later decades, the residuals are consistently higher than the mean. In the middle of the time series, however, they are consistently less than the mean. This demonstrates that there are still components in the original time series that have not been accounted for by the linear model. It is also a reflection of what a first order linear model may achieve on non-stationary data, where the two sole model parameters only capture the average trend over the data. When this trend is not constant, the fit over the data is uneven.
 
 For a better fit, a polynomial time trend can be estimated.
 
 ```{r}
 poly_model <- lm(co2 ~ Time + I(Time^2) + I(Time^3))
 
-plot(co2, xlab = "Year", ylab = expression("CO"[2]*" Concentration (PPM)"), main = "Figure 11. Fitted Polynomial Model",
+plot(co2, xlab = "Year", ylab = expression("CO"[2]*" Concentration (ppm)"), main = "Figure 11. Fitted Polynomial Model",
      type = "l")
 lines(co2 + linear_model$resid, col = "blue", cex = 0.6)
 lines(co2 + poly_model$resid, col = "red", cex = 0.6)
@@ -154,15 +156,15 @@ legend('bottomright',
        col=c("black","blue","red"), lty=1)
 ```
 
-**Figure 11** overlays the fitted time trend model of order three with the original linear model of order one. It is apparent that there are very few locations during the time series where the original model deviated but the polynomial did not. This indicates that using higher orders of time trend alone will not improve the model while the seasonality is still not addressed.
+**Figure 11** overlays the fitted time trend model of the third order with the original linear model of the first order. Except for a few, repeated locations, most of the time the linear and polynomial models overlapped one another closely. This indicates that using higher orders of time trend alone will not improve the model while the seasonality is still not addressed.
 
-This can be accounted for with the use of seasonal dummy variables.
+The use of seasonal dummy variables in the model can attempt to address this.
 
 ```{r}
 poly_dummy_model <- tslm(formula = co2 ~ 0 + trend + I(trend^2) + 
                            I(trend^3) + season)
 
-plot(co2, xlab = "Year", ylab = expression("CO"[2]*" Concentration (PPM)"), 
+plot(co2, xlab = "Year", ylab = expression("CO"[2]*" Concentration (ppm)"), 
      main = "Figure 12. Fitted Seasonal Polynomial Model", type = "l")
 lines(co2 + linear_model$resid, col = "blue", cex = 0.6)
 lines(co2 + poly_dummy_model$resid, col = "chocolate", cex = 0.6)
@@ -185,18 +187,18 @@ title("Figure 14. Partial Autocorrelation Plot")
 
 **Figures 13** and **14** display the ACF and PACF of the residuals from the polynomial model with seasonal dummy variables. The cyclic components found with the linear model in **Figures 8** and **9** are no longer visible in these examples. **Figure 13** shows heavy autocorrelation until lag ~15, while **Figure 14** shows that the first lag still has a very significant partial autocorrelation associated with it.
 
-The residuals appearance can also be directly examined as also done previously.
+The residuals appearance can also be directly examined as done previously.
 
 ```{r}
 plot(poly_dummy_model$residuals, 
-     xlab = "Time", ylab = expression("CO"[2]*" Concentration  Residual(PPM)"), 
+     xlab = "Time", ylab = expression("CO"[2]*" Concentration  Residual (ppm)"), 
      xaxt = "n",
      main = "Figure 15. Seasonal Polynomial Model Residuals", type = "l")
 axis(1, at=c(12,132,252,372), labels=c(1960, 1970, 1980, 1990))
 abline(h = mean(poly_dummy_model$resid), col = "red")
 ```
 
-**Figure 15** shows the residuals of the polynomial model with seasonal dummy variables. Though still fluctuating, the residuals now appear stationary in the mean compared to **Figure 10**. This is indicative of an improved fit. While there is still some cyclic pattern that can be observed in this series, it has an appearance much closer to that of white noise. These cycles still indicate that there may be components in the original time series still not accounted for by the model, however.
+**Figure 15** shows the residuals of the polynomial model with seasonal dummy variables. Though still fluctuating, the residuals now appear much closer to white noise compared to **Figure 10**. This is indicative of an improved fit. While there is still some cyclic pattern that can be observed, it does not have a clear, consistent pattern. These cycles still indicate that there may be components in the original time series still not accounted for by the model, however.
 
 Finally, this best performing polynomial model can also be used to forecast values to the present.
 
@@ -217,7 +219,7 @@ ggplot() +
                 colour="Fitted Values")) +
   geom_ribbon(data=ci.df, aes(x=time(pred.ts),
                               ymin=lwr, ymax=upr), alpha=0.5) +
-  labs(y = expression("CO"[2]*" Concentration (PPM)"), 
+  labs(y = expression("CO"[2]*" Concentration (ppm)"), 
        x = "Year", title = "Figure 16. Polynomial Model Forecasts",
        colour = "Time Series") + 
   theme(panel.background = element_blank(),
@@ -227,21 +229,21 @@ ggplot() +
         axis.text.y=element_text(colour="black"))
 ```
 
-**Figure 16** shows the original time series along with the polynomial trend + seasonal dummy variable fit. The forecast of the fitted model 20 years into the future, reaching our present, is also shown. Finally, the confidence interval of the forecast is also shown in the transparent coloring around the values. It can be seen that these confidence intervals are quite tight to the forecast and do not project a large amount of uncertainty in the prediction. In general, uncertainty increases further into the future but not by an excessive amount. 
+**Figure 16** shows the original time series along with the polynomial trend and seasonal dummy variable fit. The forecast of the fitted model 20 years into the future, reaching our present, is also shown. Finally, the confidence interval of the forecast is indicated by the transparent coloring around the values. It can be seen that these confidence intervals are quite tight to the forecast and do not project a large amount of uncertainty in the prediction. In general, uncertainty increases further into the future but not by an excessive amount. 
 
-In addition, the forecast generally predicts CO2 concentrations to continue to increase, but at a decreasing rate. By the year 2020, it almost appears as if the forecast expects them to level off. However, knowing that CO2 concentrations have continued to increase at about the same rate, this is inaccurate. Because of this, the model predicts a CO2 concentration of about ~`r as.integer(exp(6))` ppm by the year 2020 when in reality the measured value is almost 420 ppm.
+In addition, the forecast generally predicts CO$_2$ concentrations to continue to increase, but at a decreasing rate. By the year 2020, it almost appears as if the forecast expects them to level off. However, knowing that CO$_2$ concentrations have continued to increase at about the same rate, this is inaccurate. Because of this, the model predicts a CO2 concentration of about ~`r as.integer(exp(6))` ppm by the year 2020 when in reality the measured value is about ~420 ppm. Later in the report the forecasts will be compared with a full set of recorded values during this time.
 
-## ARIMA Modeling
+## SARIMA Modeling on Keeling Data
 
-While a polynomial linear time trend with seasonal effects fit the data well in **Figure 12**, other methods may also better capture the relationships within the data. These include the use of autoregressive (AR), moving average (MA), and/or integrated (I) terms. When used in tandem, this results in the ARIMA model that is one of the most common approaches towards time series modeling for forecasts. Without an I component, an ARMA model would take the form of:
+While a polynomial time trend with seasonal effects fit the data well in **Figure 12**, other methods may better capture the relationships within the data. These include the use of autoregressive (AR), moving average (MA), and/or integrated (I) terms. When used in tandem, this results in the ARIMA model that is one of the most common approaches of time series modeling. Without an I component, an ARMA model would take the form of:
 $$x_t = \alpha_1*x_{t-1} + \alpha_2*x_{t-2} + ... + \alpha_p*x_{t-p} + \beta_1*w_{t-1} + \beta_2*w_{t-2} + ... + \beta_q*w_{t-q}$$
-where $x_t$ is the time series being modeled, $p$ is the order of the AR process in the model, $q$ is the order of the MA process in the model, and $w_t$ is white noise. It can be seen that, given the name, the AR components used previous values of the time series in order to forecast future values. Similarly, the MA components use the white noise residual of previous model forecasts to true values to adjust future forecasts. The use of the backwards shift operator $\boldsymbol{B}$, common in math which involves time, can be used to more succintly express the above formula as:
+where $x_t$ is the time series being modeled, $p$ is the order of the AR process in the model, $q$ is the order of the MA process in the model, and $w_t$ is white noise. It can be seen that, given the name, the AR components use the previous values of the time series in order to forecast future values. Similarly, the MA components use the white noise residual of previous model forecasts to true values to adjust future forecasts. The use of the backwards shift operator $\boldsymbol{B}$, common in math which involves time, can be used to more succintly express the above formula as:
 $$\theta_p(\boldsymbol{B})x_t = \phi_q(\boldsymbol{B})w_t$$
 With a differencing of order $d$, the short form can be extended to
 $$\theta_p(\boldsymbol{B})(1-\boldsymbol{B})^dx_t = \phi_q(\boldsymbol{B})w_t$$
-Finally, if seasonality is included into the model, a set of identical but separate model terms may be included to capture the seasonality while the original set captures the non-seasonal variation. The seasonal components are indicated by the capital letter version of the same previous terms, resulting in a final seasonal ARIMA (SARIMA) model of the form
+Finally, if seasonality is included into the model, a set of identical but separate model terms may be included to capture the seasonal variation while the original set captures the non-seasonal variation. The seasonal components are indicated by the capital letter version of the same previous terms, resulting in a final seasonal ARIMA (SARIMA) model of the form
 $$\Theta_P(\boldsymbol{B}^s)\theta_p(\boldsymbol{B})(1-\boldsymbol{B}^s)^D(1-\boldsymbol{B})^dx_t = \Phi_Q(\boldsymbol{B}^s)\phi_q(\boldsymbol{B})w_t$$
-where the seasonal and non-seasonal terms may or may not be of the same order, e.g. $p = P$ or $p \neq P$.
+where the seasonal and non-seasonal terms need not be of the same order, e.g. $p = P$ or $p \neq P$.
 
 Unlike the linear time trend, stationarity is needed for any SARIMA or ARIMA model. This will now be explored and compared to the previous linear time trend model.
 
@@ -265,7 +267,7 @@ title("Figure 20. Seasonal PACF")
 
 **Figures 17-18** show the ACF and PACF of the non-seasonal time series component while **Figures 19-20** show the same information for the seasonal component. It can be seen that the majority of the cyclic pattern is removed from the non-seasonal component once the lag difference was subtracted, but that some still remains with smaller magnitude. For the non-seasonal component, the single significant lag at *k=1* in both **Figures 17** and **18** suggests $p = q = 1$. There are more significant lags in **Figure 18**, but upon comparison with **Figure 20** it appears these could be related to seasonality which was imperfectly removed. For the seasonal component of the time series, a similar observation can be made of **Figure 19** and **20** that suggests $P = Q = 1$. Likewise, the significant lag at $k = 3$ in **Figure 20** suggests that $P$ could be higher order, but this may still be a product of the seasonality that is imperfectly isolated.
 
-Although these values may be what are expected when manually examining the time series, the use of the AIC to differentiate this potential model with others like it can also be used. This will be investigated for SARIMA models which vary from the above specifications by one or two orders for each of the components. To simplify the search, and because the order of the terms appeared similar above, the seasonal and non-seasonal components will be assumed to be of the same order (i.e. $p = P$, $d = D$, and $q = Q$).
+Although these values may be what are found when manually examining the time series, the use of the [Akaike Information Criterion](https://en.wikipedia.org/wiki/Akaike_information_criterion) (AIC) to differentiate one potential model from others can also be used. This will be investigated for SARIMA models which vary from the above specifications by one or two orders for each of the components. To simplify the search, and because the order of the terms appeared similar above, the seasonal and non-seasonal components will be assumed to be of the same order (i.e. $p = P$, $d = D$, and $q = Q$).
 
 ```{r, warning = FALSE}
 # placeholders
@@ -294,14 +296,14 @@ cat("Order of Differencing:", d_model, "\n")
 print(arima_model$coef)
 ```
 
-Shown above, the SARIMA model with the best AIC had an order of $p = P = 2$, $d = D = 1$, and $q = Q = 1$. Notably, not performing a second differencing was found to work best with the time series. Having determined the order of each of the components, the SARIMA model can be created.
+Shown above, the SARIMA model with the best AIC had an order of $p = P = 2$, $d = D = 1$, and $q = Q = 1$. Notably, not performing a second differencing was found to fit better with the data. Having determined the order of each of the components, the final SARIMA model can be created on its own.
 
 ```{r}
 arima_model <- arima(d, order = c(2, 1, 1), 
                      seasonal = list(order = c(2,1,1)))
 
 plot(d, xlab = "Year", 
-     ylab = expression("CO"[2]*" Concentration (PPM), Transformed"), 
+     ylab = expression("CO"[2]*" Concentration (ppm), Transformed"), 
      main = "Figure 21. Fitted SARIMA Model", type = "l")
 lines(d + arima_model$resid, col = "red", cex = 0.6)
 legend('bottomright', 
@@ -340,13 +342,19 @@ ggplot() +
                 colour="Fitted Values")) +
   geom_ribbon(data=ci.df2, aes(x=time(pred2.ts),
                               ymin=lwr, ymax=upr), alpha=0.5) +
-  labs(y = expression("CO"[2]*" Concentration (PPM), Transformed"), 
-       x = "Year", title = "Figure 23. SARIMA Model Forecast") 
+  labs(y = expression("CO"[2]*" Concentration (ppm), Transformed"), 
+       x = "Year", title = "Figure 23. SARIMA Model Forecast",
+       colour = "Time Series") + 
+  theme(panel.background = element_blank(),
+        axis.line = element_line(colour = "black"),
+        legend.key=element_blank(),
+        axis.text.x=element_text(colour="black"),
+        axis.text.y=element_text(colour="black")) 
 ```
  
-**Figure 23** shows the forecast of the SARIMA model to the near present along with the 80% and 95% confidence intervals. As expected, the further into the future the model is used for forecasting, the wider the bounds become on the forecast. At the most recent point the model predicts a CO2 concentration of about ~`r as.integer(exp(tail(predictions2$mean, 1)))` ppm, which is greater than the polynomial model and closer to the true recorded value of ~420 ppm. This is likely because the polynomial model of order 3 increases at a decreasing rate over time, whereas the SARIMA model continues closer to the observed rate in the time series. With this, the SARIMA model appears to be a better fit to the time series than the linear or polynomial trend models even though there is greater uncertainty in its predictions.
+**Figure 23** shows the forecast of the SARIMA model to the near present along with the 95% confidence intervals. As expected, the further into the future the model is used for forecasting, the wider the bounds become on the forecast. At the most recent point the model predicts a CO2 concentration of about ~`r as.integer(exp(tail(predictions2$mean, 1)))` ppm, which is greater than the polynomial model and closer to the true recorded value of ~420 ppm. This is likely because the polynomial model of order 3 increases at a decreasing rate over time, whereas the SARIMA model continues closer to the observed rate in the time series. With this, the SARIMA model appears to be a better fit to the time series than any of the time trend models even though there is greater uncertainty in its predictions.
  
-## Forecast Evaluation with NOAA Atmospheric Carbon Dioxide Data
+## Forecast Evaluation with NOAA Data
 
 In addition to Keeling's original observations, many other scientific groups across the world have studied the Earth's atmosphere. One such in the US is the National Oceanic and Atmospheric Administration (NOAA), part of the US government. The file `co2_weekly_mlo.txt` contains weekly observations of atmospheric carbon dioxide concentrations measured at the same Mauna Loa Observatory from 1974 to 2020, published by NOAA. With this new dataset containing observations over the forecast period, at the same location as the original data, it can be used as a source of true values against which to compare the different forecasts.
 
@@ -363,7 +371,9 @@ w <- w %>%
   mutate(date = make_date(yr, mon, day))
 ```
 
-In addition to the measured concentrations of carbon dioxide in PPM, there is additional information provided by NOAA. For use as true values against which to compare a forecast, however, only the concentrations are needed. It appears there are `r length(w$ppm[w$ppm==-999.99])` missing weekly measurements of carbon dioxide concentration, which need to be addressed. Potential options include dropping these dates or imputing the values with the surrounding data in time. This may be less desirable if there are serial missing values rather than isolated points which are missing.
+In addition to the measured concentrations of carbon dioxide in ppm, there is additional information provided by NOAA. For use as true values against which to compare a forecast, however, only the concentrations are needed. 
+
+It appears there are `r length(w$ppm[w$ppm==-999.99])` missing weekly measurements of carbon dioxide concentration, which need to be addressed. Potential options include dropping these dates or imputing the values with the surrounding data in time. This may be less desirable if there are serial missing values rather than isolated points which are missing.
 
 ```{r}
 # First drop irrelevant columns
@@ -386,20 +396,20 @@ With the missing data filled in, it can then be visualized to compare with the K
 ```{r}
 ts1 <- ts(w2$ppm, start=c(1974, 5), frequency=52)
 
-plot(ts1, main="Figure 24. NOAA with Imputed Missing Values",
-     ylab = expression("CO"[2]*" Concentration (PPM)"), col="darkgreen")
+plot(ts1, main="Figure 24. NOAA Data with Imputed Missing Values",
+     ylab = expression("CO"[2]*" Concentration (ppm)"), col="darkgreen")
 ```
 
-From **Figure 24** we can see that this plot of actual measured carbon dioxide levels highly resembles that of the Keeling curve, and the imputation has not produced any obvious or drastic deviations from the overall seasonal and increasing trend. Unlike the original `co2` series, it does not appear that the variance of the trend is increasing. This can be double checked by decomposing the time series into constituent parts:
+Based on **Figures 24** and **1**, the NOAA carbon dioxide measurements closely resemble that of the Keeling curve. In **Figure 24** particularly, the imputation has not produced any obvious or drastic deviations from the overall seasonality and increasing trend. Unlike the original Keeling series, it does not appear that the variance of the trend is increasing. This can be double checked by decomposing the time series into constituent parts.
 
 ```{r}
 decomp.ts1 <- decompose(ts1, type="additive")
 plot(decomp.ts1$seasonal, 
-     main="Figure 25. Seasonal Component of Real Time Series",
+     main="Figure 25. Seasonal Component of the NOAA Data",
      ylab="Deviation")
 ```
 
-**Figure 25** demonstrates that there is no variation in the seasonal component of the NOAA data, unlike that which was observed in Keeling's data set. This would make a logarithm transformation of this data unnecessary as the data is already stationary in the variance. Next, the increasing mean must still be addressed, which can be done by differencing the values.
+**Figure 25** demonstrates that there is no variation in the seasonal component of the NOAA data, unlike that which was observed in Keeling's data set. This would make a logarithm transformation of this data unnecessary as it is already stationary in the variance. Next, the increasing mean must still be addressed, which can be done by differencing the values.
 
 ```{r}
 ts1.d1 <- diff(ts1)
@@ -414,7 +424,7 @@ plot(ts1.d2, xlab = "Year", ylab = "Second Differenced Value",
 abline(h = mean(d2), lty = 2, col = "red")
 ```
 
-**Figures 26** and **27** display the time series with first and second order differencing respectively. Similar to Keeling's original series, it can be seen that though the differencing has removed the main increasing trend, there is still a large degree of fluctuation about the mean. Compared to the original series, the increased granularity of data at the weekly level accentuates this fluctuation. Nevertheless, just like with Keeling's series, a second-order differencing operation not only removes the increasing trend but the data also becomes completely stationary around the mean. Next, a deeper look into the seasonality of the data can be taken using the ACF and PACF.
+**Figures 26** and **27** display the time series with first and second order differencing respectively. Similar to Keeling's original series, it can be seen that though the differencing has removed the main increasing trend, there is still a degree of fluctuation about the mean. Compared to the original series, the increased granularity of data at the weekly level accentuates this fluctuation. Nevertheless, just like with Keeling's series, a second-order differencing operation not only removes the increasing trend but the data also becomes completely stationary around the mean. Next, a deeper look into the seasonality of the data can be taken using the ACF and PACF.
 
 ```{r}
 par(mfrow = c(1, 2), cex = 0.6)
@@ -424,22 +434,22 @@ plot(pacf(ts1.d2, plot = FALSE), main = "")
 title("Figure 29. Partial Autocorrelation Plot")
 ```
 
-**Figures 28** and **29** show the ACF and PACF of the observed data after second differencing. Unlike the ACF for Keeling's data, the ACF for this dataset shows a substantial and highly significant negative lag at $k = 1$. Thereafter the lags drastically decrease, and it appears only the third and eighth lags are weakly significant. Like the Keeling series, the PACF has an oscillatory pattern that appears to be decreasing in magnitude over time. These all indicate a seasonal element may be present with the data.
+**Figures 28** and **29** show the ACF and PACF of the NOAA data after second differencing. Unlike the ACF for Keeling's data, the ACF for this dataset shows a substantial and highly significant negative lag at $k = 1$. Thereafter the lags drastically decrease, and it appears only the third and eighth lags are weakly significant. Like the Keeling series, the PACF has an oscillatory pattern that appears to be decreasing in magnitude over time. These all indicate a seasonal element may be present with the data.
 
-For a more direct comparison with Keeling's data and the previous predicted values, aggregation can be performed to take the weekly (or approximately weekly) format into a monthly one:
+For a more direct comparison with Keeling's data and the previous forecasted values, aggregation can be performed to take the weekly (or approximately weekly) format into a monthly one:
 
 ```{r}
 fmt <- "%Y-%m-%d"
 w3 <- aggregate(w2["ppm"], list(Date = as.yearmon(w2$date, fmt)), mean)
 ts2 <- ts(subset(w3, w3$Date >= "Jan 1997")$ppm, start=c(1997,1), frequency=12)
 
-plot(ts2, main="Figure 30. Aggregated (Monthly) Time Series From 1997", 
-     ylab = expression("CO"[2]*" Concentration (PPM)"), col="darkgreen")
+plot(ts2, main="Figure 30. Aggregated Monthly NOAA Data From 1997", 
+     ylab = expression("CO"[2]*" Concentration (ppm)"), col="darkgreen")
 ```
 
-It can be seen from **Figure 30** that the monthly aggregated time series generally resembles the original weekly series shown in **Figure 24**. 
+It can be seen from **Figure 30** that the monthly aggregated time series generally resembles the original weekly series shown in **Figure 24**. Thus, this aggregation method does not significantly alter the data but puts it at the same grain as the Keeling dataset.
 
-In order to compare the previous forecasts with the actual data they may first be visualized together.
+In order to compare the previous forecasts with the NOAA data, they may be visualized together.
 
 ```{r, message = FALSE}
 ts3 <- ts(subset(w3, w3$Date >= "Jan 1998" & w3$Date <= "Dec 2017")$ppm, 
@@ -453,11 +463,17 @@ ggplot() +
   geom_line(data=ts3, aes(x=months, y=ts3, color="Actual")) +
   geom_line(data=p.ts, aes(x=months, y=p.ts, color="Polynomial")) + 
   geom_line(data=p.ts2, aes(x=months, y=p.ts2, color="SARIMA")) + 
-  ggtitle("Figure 31. Predicted (Polynomial & SARIMA) vs. Actual CO2 Values") +
-  labs(x="Date", y = expression("CO"[2]*" Concentration (PPM)"))
+  ggtitle(expression("Figure 31. Forecasted vs NOAA CO"[2]*" Concentrations")) +
+  labs(x="Date", y = expression("CO"[2]*" Concentration (ppm)"),
+       colour = "Time Series") + 
+  theme(panel.background = element_blank(),
+        axis.line = element_line(colour = "black"),
+        legend.key=element_blank(),
+        axis.text.x=element_text(colour="black"),
+        axis.text.y=element_text(colour="black"))
 ```
 
-Shown in **Figure 31**, the SARIMA model generally predicts carbon dioxide levels very accurately, including seasonal variation, until ~2004. Thereafter, the model begins to underestimate the true carbon dioxide levels, though it appears the cyclical variation remains well represented by the model. In comparison, though the polynomial can also provide a generally reasonable short-term forecast until ~2004, thereafter it begins to severely underestimate carbon dioxide levels even relative to the SARIMA model. In order to quantify the performance of each, metrics such as mean absolute error (MAE) and root mean squared error (RMSE) can be used, among others:
+Shown in **Figure 31**, the SARIMA model generally predicts carbon dioxide levels very accurately, including seasonal variation, for the first six years until ~2003. Thereafter, the model begins to underestimate the true carbon dioxide levels, though it appears the cyclical variation remains well represented by the model. In comparison, though the polynomial can also provide a reasonable short-term forecast until ~2003, thereafter it begins to severely underestimate carbon dioxide levels even relative to the SARIMA model. In order to quantify the performance of each, metrics such as mean absolute error (MAE) and root mean squared error (RMSE) can be used, among others.
 
 ```{r}
 poly.acc <- accuracy(p.ts, ts3)
@@ -466,13 +482,13 @@ poly.acc
 sarima.acc
 ```
 
-Here,it can be seen that the SARIMA model quantitatively outperforms the polynomial model, with a MAE of about `r round(sarima.acc[3], 2)` (vs. about `r round(poly.acc[3], 2)` for the polynomial model) and an RMSE of about `r round(sarima.acc[2], 2)` compared to an RMSE of `r round(poly.acc[2], 2)` for the polynomial model. Between the two models, the SARIMA approximates the real data more closely, as evidenced both visually and with the accuracy metrics. Nevertheless, forecasting continued further, the SARIMA and actual values will further bifurcate both with the visual gap as well as in the error metrics. 
+Here, it can be seen that the SARIMA model quantitatively outperforms the polynomial model, with a MAE of about `r round(sarima.acc[3], 2)` (vs. about `r round(poly.acc[3], 2)` for the polynomial model) and an RMSE of about `r round(sarima.acc[2], 2)` compared to an RMSE of `r round(poly.acc[2], 2)` for the polynomial model. Because of this and the visual evidence in **Figure 31**, the SARIMA model approximates the recorded NOAA data more closely. Nevertheless, if forecasting continued further, the SARIMA and actual values will further bifurcate both with the visual gap as well as in the error metrics. 
 
-## Model Comparison Based on NOAA Data
+## SARIMA Modeling with NOAA Data
 
-Previously, both types of models generally underestimated the concentrations of carbon dioxide in forecasts over the 30 years from the 1990s to ~2020. However, these models were based on the Keeling dataset, with only ~40 years of total data to begin with. In this case, the 30 year forecasting period was over half the size of the original training period. Such long forecasts, especially when the length of the forecast is comparable to the training period length, are inadvisable and may not yield significant information about a comparison between two models. Instead, the NOAA data may be used to train similar models on a longer ~45 year period with only a short term forecast of two years for comparison. 
+Previously, both types of models generally underestimated the concentrations of carbon dioxide in forecasts over the 30 years from the 1990s to ~2020. However, these models were based on the Keeling dataset, with only ~40 years of total data to begin with. In this case, the 30 year forecasting period was over half the size of the original training period. Such long forecasts, especially when the length of the forecast is comparable to the training period length, are inadvisable and may not yield significant information. Instead, the NOAA data may be used to train similar models on a longer ~45 year period with only a short term forecast of two years for a better evaluation. 
 
-In certain use cases, including atmospheric or planetary science, long term forecasting may still be important and preferable. However, for understanding and comparing model types, the short term forecasts can be useful when first deciding on which models or characteristics may be important for one which is longer term. Following this notion, different models will be fit and compared only on their two-year forecasts before a single best performing model is chosen for a long term projection.
+In certain use cases, including atmospheric or planetary science, long term forecasting may still be important and preferable. However, for understanding and comparing model types, the short term forecasts can be useful when first deciding on which models or characteristics may be important for one which is longer term. Following this notion, a SARIMA model will be fit and evaluated only on a two-year forecast before a long term projection is created.
 
 To begin, the NOAA data will be re-partitioned into the training and testing sets and evaluated for transformations.
 
@@ -499,9 +515,9 @@ plot(pacf(d_seas, plot = FALSE), main = "")
 title("Figure 35. Seasonal PACF")
 ```
 
-Based upon the above non-seasonal (**Figures 32** and **33**) and seasonal (**Figures 34** and **35**) ACF and PACF plots, it can be seen that there is an element of seasonality in the data as the non-seasonal ACF (**Figure 32**) shows a seasonal pattern. Similarly, the non-seasonal PACF (**Figure 33**) shows a significant spike at the 12th lag, with a slightly smaller (yet still significant) lag at the 24th. It can then be observed that after differencing and accounting for seasonality, the seasonal PACF (**Figure 35**) has a significant spike at the first, second, eleventh and twelfth lags. This indicates that an AR(1) or AR(2) model should be chosen, since only the first two immediate periods are significant before the seasonal pattern begins. Moreover in **Figure 34**, though every lag appears to be highly significant the autocorrelations greater than the second lag might be caused by propagation of first lag's autocorrelation. 
+Based upon the above non-seasonal (**Figures 32** and **33**) and seasonal (**Figures 34** and **35**) ACF and PACF plots, there is an element of seasonality in the data as the non-seasonal ACF (**Figure 32**) still shows a seasonal pattern. Similarly, the non-seasonal PACF (**Figure 33**) shows a significant spike at the 12th lag, with a slightly smaller (yet still significant) lag at the 24th. It can then be observed that after differencing and accounting for seasonality, the seasonal PACF (**Figure 35**) has a significant spike at the first, second, eleventh and twelfth lags. This indicates that an AR(1) or AR(2) model should be chosen, since only the first two immediate periods are significant before the seasonal pattern begins. Moreover in **Figure 34**, though every lag appears to be highly significant, the autocorrelations greater than the second lag might be caused by propagation of first lag's autocorrelation. 
 
-Based upon this, an autoregressive model of this data should be of at least the first order, with a differencing term of one as well. Nevertheless, due to the high number of significant lags in **Figure 34**, a moving average parameter may also be important to incorporate into the model. In order to find the best possible model, combinations of orders for **p**, **d**, **q**, and their seasonal equivalents can be created and compared with one another. Instead of making simultaneous forecasts, potentially causing a significance issue with the number of comparisons being made, they can be compared based on the AIC as done previously. 
+Based upon this, an autoregressive model of this data should be of at least the first order, with a differencing term of one as well. Nevertheless, due to the high number of significant lags in **Figure 34**, a moving average parameter may also be important to incorporate into the model. In order to find the best possible model, combinations of orders for $p$, $d$, $q$, and their seasonal equivalents can be created and compared with one another. Instead of making simultaneous forecasts, potentially causing an issue with the number of comparisons being made, they can be compared based on the AIC as done previously. 
 
 ```{r, warning = FALSE}
 params <- list()
@@ -538,12 +554,12 @@ min <- ifelse(!all(is.na(aics2)), min(aics2, na.rm=T), NA)
 index <- which(aics2==min)
 ```
 
-Based on AIC, model `r index` produced the best fitting model, with an AIC of `r round(aics2[index], 4)`. The model had SARIMA parameters **p=1**, **d=1**, **q=1** and seasonal parameters of **P=0**, **D=1** and **Q=1** and an annual seasonality as used before. This model can be re-built outside of the prior loop for further use:
+Based on AIC, model `r index` produced the best fitting model, with an AIC of about `r round(aics2[index], 1)`. The model had SARIMA parameters $p=1$, $d=1$, and $q=1$, with seasonal parameters of $P=0$, $D=1$ and $Q=1$, and an annual seasonality as used before. This model can be re-built outside of the prior loop for further use.
 
 ```{r}
 f.md <- arima(train.ts, order=c(1,1,1), seasonal=list(order=c(0,1,1), period=12))
 
-plot(train.ts, xlab = "Year", ylab = expression("CO"[2]*" Concentration (PPM)"), 
+plot(train.ts, xlab = "Year", ylab = expression("CO"[2]*" Concentration (ppm)"), 
      main = "Figure 36. Fitted Best Performing SARIMA Model", type = "l")
 lines(train.ts + f.md$resid, col = "orange", cex = 0.5)
 legend('bottomright', 
@@ -551,7 +567,7 @@ legend('bottomright',
        col=c("black","orange"), lty=1)
 ```
 
-**Figure 36** shows the best fit SARIMA model on the dataset, which matches the original data almost identically. This is similar to the fit to Keeling's data in **Figure 21**.
+**Figure 36** shows the best fit SARIMA model on the dataset, which matches the original data almost identically. This is similar to the fit of the original SARIMA model to Keeling's data in **Figure 21**.
 
 The residuals of the model can also be examined.
 
@@ -568,7 +584,7 @@ plot(hist(f.md$residuals, plot = FALSE), xlab = "Residual Value",
 
 **Figures 37** and **38** show the residuals of the model over time along with their distribution. It can be seen that there is no obvious pattern remaining in **Figure 37**, suggesting the model accounts for the majority of the components in the underlying data. Likewise the distribution appears normal, also suggesting there is no remaining trend in the data not accounted for by the applied transformations and modeling.
 
-Finally, the in-sample model performance metrics can be examined.
+Following this visual inspection, the in-sample model performance metrics can be examined.
 
 ```{r}
 fitteds <- train.ts + f.md$residuals
@@ -576,7 +592,7 @@ isa <- accuracy(fitteds, train.ts)
 isa
 ```
 
-Based upon **Figure 36** the best performing model has a fit that is almost identical to the training set values. This is evidenced by the fact that it is not easy to visually differentiate the fitted values from the real values, and there are only small locations where there is not an exact overlap. In the performance metrics shown above, the in-sample performance achieves a MAE of `r round(isa[3], 4)` and a RMSE of `r round(isa[2], 4)` which reinforce the visual findings. While reassuring that the model has fit the training data, it is also important that this does not extend to the point of overfitting where any forecast would not be valuable. However, with only three terms in the model, this is not likely.
+Based upon **Figure 36** the best performing model has a fit that is almost identical to the training set values. This is evidenced by the fact that it is not easy to visually differentiate the fitted values from the real values, and there are only small locations where there is not an exact overlap. In the performance metrics shown above, the in-sample performance achieves a MAE of about `r round(isa[3], 4)` and a RMSE of about `r round(isa[2], 4)`, which reinforce the visual findings. While reassuring that the model has fit the training data, it is also important that this does not extend to the point of overfitting where any forecast would not be valuable. However, with only three terms in the model, this is not likely.
 
 Next, this model may be used to forecast for the next two years, which corresponds to the testing set. These predictions and true values can be visualized together.
 
@@ -586,16 +602,28 @@ f.ts <- ts(f1$mean, start=c(2019,7), frequency=12)
 
 autoplot(f1) +
   ggtitle("Figure 39. Forecasts from Best Fitting ARIMA Model") +
-  labs(y=expression("CO"[2]*" Concentration (PPM)"), x="Date")
+  labs(y=expression("CO"[2]*" Concentration (ppm)"), x="Date",
+       colour = "Time Series") + 
+  theme(panel.background = element_blank(),
+        axis.line = element_line(colour = "black"),
+        legend.key=element_blank(),
+        axis.text.x=element_text(colour="black"),
+        axis.text.y=element_text(colour="black"))
 
 ggplot() +
   geom_line(data=test.ts, aes(x=time(test.ts), y=test.ts, color="Actual")) +
   geom_line(data=f.ts, aes(x=time(test.ts), y=f.ts, color="SARIMA")) + 
-  labs(x="Date", y=expression("CO"[2]*" Concentration (PPM)")) + 
-  ggtitle("Figure 40. Comparison of Predicted Vs. Actual Values")
+  labs(x="Date", y=expression("CO"[2]*" Concentration (ppm)"),
+       colour = "Time Series") + 
+  ggtitle("Figure 40. Comparison of Predicted Vs. Actual Values") + 
+  theme(panel.background = element_blank(),
+        axis.line = element_line(colour = "black"),
+        legend.key=element_blank(),
+        axis.text.x=element_text(colour="black"),
+        axis.text.y=element_text(colour="black"))
 ```
 
-In **Figure 39** the two year prediction of the SARIMA (1,1,1)(0,1,1)[12] model can be seen as a continuation of the previous trend. Moreover, the confidence intervals are extremely narrow to the point of being almost indistinguishable from the mean values. This might be due to over-fitting of the model during training which incorrectly improves its confidence, or the fact that it is a relatively short-term forecast. However, upon closer inspection in **Figure 40**, the CO$_2$ forecasts almost completely overlap the values of the original data. This implies that the model and its data were well specified for the forecast to so closely match the true values. 
+In **Figure 39** the two year prediction of the SARIMA (1,1,1)(0,1,1)[12] model can be seen as a continuation of the previous trend. Moreover, the confidence intervals are extremely narrow to the point of being almost indistinguishable from the mean values. This might be due to over-fitting of the model during training which incorrectly improves its confidence, or the fact that it is a relatively short-term forecast. However, upon closer inspection in **Figure 40**, the CO$_2$ forecasts almost completely overlap the true values. This implies that the model and its transformations were well specified for the forecast to so closely match. 
 
 With the forecast made, the out of sample error metrics may be calculated.
 
@@ -604,7 +632,7 @@ accf1 <- accuracy(f.ts, test.ts)
 accf1
 ```
 
-Now, on the testing dataset, the MAE is about `r round(accf1[3], 4)` while the RMSE is about `r round(accf1[2], 4)`. These values are very low given the range of the outcome variable in the hundreds of PPM. Together with the visual inspection conducted previously, it may be concluded that the SARIMA model fits CO$_2$ concentrations very well. While this is a positive initial result, it should be remembered that this is a relatively short-term forecast at 24 months, with one value predicted per month. Longer term forecasts should still be taken with a grain of salt even though the results show promise on the shorter term, as any errors will accumulate and lead to greater divergence between the true and predicted values.
+Now, on the testing dataset, the MAE is about `r round(accf1[3], 4)` while the RMSE is about `r round(accf1[2], 4)`. These values are very low given the range of the outcome variable in the hundreds of ppm. Together with the visual inspection conducted previously, it may be concluded that the SARIMA model fits these CO$_2$ concentrations very well. While this is a positive initial result, it should be remembered that this is a relatively short-term forecast at 24 months, with one value predicted per month. Longer term forecasts should still be taken with a grain of salt even though the results show promise on the shorter term, as any errors will accumulate and lead to greater divergence between the true and predicted values.
 
 While any long term predictions should be interpreted with less certainty, sometimes they are more important or interesting to investigate than the short term. For example, some scientists have noted that the most recent time in Earth's history where carbon dioxide concentrations were this high is estimated to be the [Pliocene](https://en.wikipedia.org/wiki/Pliocene) era$^{[1]}$, causing concern for how this atmospheric change could lead to other changes among the Earth's processes. 
 
@@ -615,12 +643,12 @@ f2df <- data.frame(f2)
 autoplot(f2) +
   geom_hline(yintercept = 450, linetype="dotted", color='red') +
   ggtitle("Figure 41. SARIMA Year 2100 Forecast") +
-  labs(x="Time", y=expression("CO"[2]*" Concentration (PPM)"))
+  labs(x="Time", y=expression("CO"[2]*" Concentration (ppm)"))
 ```
 
-According to the final model and depicted by the dotted red line in **Figure 41**, the CO$_2$ concentration is expected to first potentially reach or exceed 450 ppm in March 2035. The 95% confidence interval for this reading is between `r round(f2df[189,4], 4)` and `r round(f2df[189,5],4)` for this month. This level is notable as is about the maximum allowable CO$_2$ concentration in the RCP2.6 modeling scenario$^{[2]}$, which is considered the mildest climate change scenario. In this scenario, this peak should occur in between ~2040-2050 and would result in the lowest amount temperature increase at an estimated 2°C global mean temperature. With the model forecast in this project putting this concentration passed in only 2035, it is likely that the Earth will experience a more greatly changing climate than this scenario describes.  
+According to the final model and depicted by the dotted red line in **Figure 41**, the CO$_2$ concentration is expected to first potentially reach or exceed 450 ppm in March 2035. The 95% confidence interval for this month is between `r round(f2df[189,4], 4)` and `r round(f2df[189,5],4)`. This level is notable as it is about the maximum allowable CO$_2$ concentration in the RCP2.6 modeling scenario$^{[2]}$, which is considered the mildest put forth by researchers. In this scenario, peak CO$_2$ concentrations in the atmosphere should occur between ~2040-2050, which would result in a increase of an estimated 2°C in global mean temperature. With the model forecast in this project putting this concentration passed in 2035, it is likely that the Earth will experience a more greatly changing climate than this scenario describes.  
 
-**Figure 41** also shows a ~1000 month forecast from June 2019, approximately until the year 2100. The trend the model predicts is approximately linear at such a long timescale. Nevertheless, the uncertainty in the predictions also increases the further a prediction is made into the future, shown by the widening 95% confidence intervals. When considering this, 450 ppm is first reached by the upper 95% confidence interval in approximately ~2032 and could be as late as ~2040. Thus, while it may be predicted that in January 2100 the point forecast of CO$_2$ levels will be `r round(f2df[967, 1],4)`, the 95% confidence interval is extremely wide and between `r round(f2df[967, 4],4)` and `r round(f2df[967, 5],4)`. Consequently this indicates that the model should not be used to make predictions so far ahead into the future with certainty, and only used as a general estimate of where concentrations are headed.  
+**Figure 41** also shows a ~1000 month forecast from June 2019, approximately until the year 2100. The trend the model predicts is approximately linear at such a long timescale. Nevertheless, the uncertainty in the predictions also increases the further a prediction is made into the future, shown by the widening 95% confidence intervals. When considering this, 450 ppm is first reached by the upper 95% confidence interval in approximately ~2032 and could be as late as ~2040. Thus, while it may be predicted that in January 2100 the point forecast of CO$_2$ levels will be about `r round(f2df[967, 1],1)`, the 95% confidence interval is extremely wide and between `r round(f2df[967, 4],1)` and `r round(f2df[967, 5],1)`. Consequently this indicates that the model should not be used to make predictions so far ahead into the future with certainty, and only used as a general estimate of where concentrations are headed.  
 
 Citations
 
