@@ -97,7 +97,7 @@ title("Figure 6. Partial Autocorrelation Plot")
 
 **Figures 5** and **6** show the autocorrelation function (ACF) and partial autocorrelation function (PACF) of the data after the logarithm transformation and second differencing. It can be seen there is a significant lag at *k = 1* and *k = 2*, measured in years. In between these points (and also for the subsequent interval) appears to be a repetitive oscillatory pattern indicating that there is seasonality to this data. This fits with Keeling's original hypothesis that stated annual cyclic changes in the environment and vegetation would affect CO$_2$ concentrations in the atmosphere. Interestingly, the pattern in **Figure 5** assumes a shape where whole number lags are significantly positive but intermediate lags are significantly negative, and with decreasing magnitudes over later time-period shifts. Similar to **Figure 6**, these oscillations appears to be decreasing in magnitude over time. These repeating patterns may explain seasonality in the time series, rather than being indicative of the non-seasonal autoregressive (AR) or moving average (MA) components. Full investigation of AR/MA components of the data will be continued later when exploring ARIMA models. 
 
-## Linear Time Trend Modeling on Keeling Data
+## Linear Time Trend Modeling with Keeling Data
 
 Before more complicated time series methods, a simple linear time trend can be used as a baseline against which to compare future iterations. A linear time trend is a specific type of linear time series model where the only independent variable in the model is time. That is, the model would take the form of:
 $$x_t = \alpha_0 + \alpha_1*t + \alpha_2*t^2 + ... + \alpha_n*t^n$$
@@ -233,7 +233,7 @@ ggplot() +
 
 In addition, the forecast generally predicts CO$_2$ concentrations to continue to increase, but at a decreasing rate. By the year 2020, it almost appears as if the forecast expects them to level off. However, knowing that CO$_2$ concentrations have continued to increase at about the same rate, this is inaccurate. Because of this, the model predicts a CO2 concentration of about ~`r as.integer(exp(6))` ppm by the year 2020 when in reality the measured value is about ~420 ppm. Later in the report the forecasts will be compared with a full set of recorded values during this time.
 
-## SARIMA Modeling on Keeling Data
+## SARIMA Modeling with Keeling Data
 
 While a polynomial time trend with seasonal effects fit the data well in **Figure 12**, other methods may better capture the relationships within the data. These include the use of autoregressive (AR), moving average (MA), and/or integrated (I) terms. When used in tandem, this results in the ARIMA model that is one of the most common approaches of time series modeling. Without an I component, an ARMA model would take the form of:
 $$x_t = \alpha_1*x_{t-1} + \alpha_2*x_{t-2} + ... + \alpha_p*x_{t-p} + \beta_1*w_{t-1} + \beta_2*w_{t-2} + ... + \beta_q*w_{t-q}$$
