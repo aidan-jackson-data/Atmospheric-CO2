@@ -9,4 +9,4 @@ This project uses historical time series data of carbon dioxide concentrations i
 | :----------- | :----------- |
 | Report.pdf      | Report and time series forecast       |
 | Report.Rmd   | R Markdown file generating the PDF        |
-| co2_weekly_mlo.txt | Data on atmospheric carbon dioxide concentrations |
+| co2_weekly_mlo.txt | NOAA data on atmospheric carbon dioxide concentrations |
